@@ -18,10 +18,11 @@
 package org.bdgenomics.RNAdam.algorithms.defuse
 
 import org.apache.spark.SparkContext._
+import org.bdgenomics.adam.models.SequenceDictionary
+import org.apache.spark.graphx.Graph
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.RNAdam.models.{ ApproximateFusionEvent, FusionEvent, ReadPair }
-import org.bdgenomics.adam.models.SequenceDictionary
-import org.bdgenomics.formats.avro.ADAMRecord
+import org.bdgenomics.formats.avro.{ ADAMContig, ADAMRecord }
 
 /**
  *
@@ -40,6 +41,25 @@ class Defuse(coverAlgorithm: SetCover, alpha: Double) {
     trueFusions(graph, exactBoundary)
   }
 
+  def preClassify(records: RDD[ADAMRecord]): RDD[(String, Seq[ReadPair])] = {
+    val r1: RDD[(String, ADAMRecord)] = records.keyBy(x => x.getReadName.toString)
+    val aaa: RDD[(String, Iterable[(String, ADAMRecord)])] = r1.groupBy(p => p._1)
+    val bbb: RDD[(String, Seq[ADAMRecord])] = aaa.map {
+      case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
+    }
+
+    val groupedByReadName: RDD[(String, Seq[ADAMRecord])] = r1.groupBy(p => p._1).map {
+      case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
+    }
+
+    val r3: RDD[(String, Seq[ReadPair])] = groupedByReadName.map {
+      case (key: String, records: Seq[ADAMRecord]) =>
+        (key, findReadPairs(records))
+    }
+
+    r3
+  }
+
   /**
    * This will classify the Record into Concordant, Spanning, and Split Reads.
    *
@@ -52,8 +72,57 @@ class Defuse(coverAlgorithm: SetCover, alpha: Double) {
    * @author anitacita99
    *         dcunningham
    */
+
   def classify(records: RDD[ADAMRecord]): (RDD[ReadPair], RDD[ReadPair], RDD[ReadPair]) =
-    ???
+    {
+      val r1: RDD[(String, ADAMRecord)] = records.keyBy(x => x.getReadName.toString)
+      val aaa: RDD[(String, Iterable[(String, ADAMRecord)])] = r1.groupBy(p => p._1)
+      val bbb: RDD[(String, Seq[ADAMRecord])] = aaa.map {
+        case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
+      }
+
+      val groupedByReadName: RDD[(String, Seq[ADAMRecord])] = r1.groupBy(p => p._1).map {
+        case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
+      }
+
+      val readPairs: RDD[ReadPair] = groupedByReadName.flatMap {
+        case (key: String, records: Seq[ADAMRecord]) =>
+          findReadPairs(records)
+      }
+
+      def concordant: RDD[ReadPair] = readPairs.filter(x => sameTranscript(x))
+      def spanning: RDD[ReadPair] = ???
+      def split: RDD[ReadPair] = ???
+      (concordant, spanning, split)
+    }
+
+  def findReadPairs(records: Seq[ADAMRecord]): Seq[ReadPair] = {
+
+    val firstRecords = records.filter(_.getFirstOfPair)
+    val secondRecords = records.filter(_.getSecondOfPair)
+
+    firstRecords.flatMap {
+      case first: ADAMRecord =>
+        secondRecords.map {
+          case second: ADAMRecord =>
+            ReadPair(first, second)
+        }
+    }
+  }
+
+  def getConcordant(groupedByReadName: RDD[(String, Seq[ADAMRecord])]): RDD[ReadPair] = ???
+
+  def sameTranscript(pair: ReadPair): Boolean = {
+    if (!hasTranscriptName(pair.first) || !hasTranscriptName(pair.second))
+      return false
+    val firstContig = pair.first.getContig()
+    val secondContig = pair.second.getContig()
+    pair.first.getContig.getContigName.equals(secondContig.getContigName)
+  }
+
+  def hasTranscriptName(record: ADAMRecord): Boolean = {
+    record.getContig() != null
+  }
 
   /**
    * Calculates a fragment length distribution, and excludes outliers given an

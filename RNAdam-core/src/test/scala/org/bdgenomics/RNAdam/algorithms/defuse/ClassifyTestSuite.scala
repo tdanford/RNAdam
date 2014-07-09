@@ -17,12 +17,40 @@
  */
 package org.bdgenomics.RNAdam.algorithms.defuse
 
+import org.apache.spark.rdd.RDD
+import org.bdgenomics.adam.models.ReferencePosition
 import org.bdgenomics.adam.util.SparkFunSuite
+import org.bdgenomics.formats.avro.{ ADAMRecord, ADAMContig }
 
 class ClassifyTestSuite extends SparkFunSuite {
 
   sparkTest("put your test here") {
     val mySc = sc // this is your SparkContext
+
+    val contig = ADAMContig.newBuilder
+      .setContigName("chr1")
+      .build
+
+    val recFirst = ADAMRecord.newBuilder()
+      .setReadName("fooFirst")
+      .setFirstOfPair(true)
+      .setReadMapped(true)
+      .setContig(contig)
+      .build()
+
+    val recSecond = ADAMRecord.newBuilder()
+      .setReadName("fooSecond")
+      .setSecondOfPair(true)
+      .setReadMapped(true)
+      .setContig(contig)
+      .build()
+
+    val recordsRdd = sc.parallelize(Seq(recFirst, recSecond))
+
+    val recordsGrouped: RDD[(String, Seq[ADAMRecord])] = Defuse.preClassify(recordsRdd)
+
+    println("Record names:")
+    recordsGrouped.foreach(x => println(x._1))
   }
 
 }
