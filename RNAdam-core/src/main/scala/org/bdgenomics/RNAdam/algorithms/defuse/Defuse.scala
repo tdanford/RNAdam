@@ -31,7 +31,7 @@ import org.bdgenomics.formats.avro.{ ADAMContig, ADAMRecord }
 class Defuse(coverAlgorithm: SetCover, alpha: Double) {
 
   def run(records: RDD[ADAMRecord],
-    seqDict: SequenceDictionary): RDD[FusionEvent] = {
+          seqDict: SequenceDictionary): RDD[FusionEvent] = {
     val (concordant, spanning, split) = classify(records)
     val (lmin, lmax) = findPercentiles(concordant)
     val graph = buildGraph(spanning, lmax)
@@ -39,25 +39,6 @@ class Defuse(coverAlgorithm: SetCover, alpha: Double) {
     val splitRecordToFusion = assignSplitsToFusions(fusions, split, seqDict, lmin, lmax)
     val exactBoundary = findExactBoundaryForFusions(splitRecordToFusion)
     trueFusions(graph, exactBoundary)
-  }
-
-  def preClassify(records: RDD[ADAMRecord]): RDD[(String, Seq[ReadPair])] = {
-    val r1: RDD[(String, ADAMRecord)] = records.keyBy(x => x.getReadName.toString)
-    val aaa: RDD[(String, Iterable[(String, ADAMRecord)])] = r1.groupBy(p => p._1)
-    val bbb: RDD[(String, Seq[ADAMRecord])] = aaa.map {
-      case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
-    }
-
-    val groupedByReadName: RDD[(String, Seq[ADAMRecord])] = r1.groupBy(p => p._1).map {
-      case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
-    }
-
-    val r3: RDD[(String, Seq[ReadPair])] = groupedByReadName.map {
-      case (key: String, records: Seq[ADAMRecord]) =>
-        (key, findReadPairs(records))
-    }
-
-    r3
   }
 
   /**
@@ -73,55 +54,8 @@ class Defuse(coverAlgorithm: SetCover, alpha: Double) {
    *         dcunningham
    */
 
-  def classify(records: RDD[ADAMRecord]): (RDD[ReadPair], RDD[ReadPair], RDD[ReadPair]) =
-    {
-      val r1: RDD[(String, ADAMRecord)] = records.keyBy(x => x.getReadName.toString)
-      val aaa: RDD[(String, Iterable[(String, ADAMRecord)])] = r1.groupBy(p => p._1)
-      val bbb: RDD[(String, Seq[ADAMRecord])] = aaa.map {
-        case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
-      }
-
-      val groupedByReadName: RDD[(String, Seq[ADAMRecord])] = r1.groupBy(p => p._1).map {
-        case (key: String, iter: Iterable[(String, ADAMRecord)]) => (key, iter.map(x => x._2).toSeq)
-      }
-
-      val readPairs: RDD[ReadPair] = groupedByReadName.flatMap {
-        case (key: String, records: Seq[ADAMRecord]) =>
-          findReadPairs(records)
-      }
-
-      def concordant: RDD[ReadPair] = readPairs.filter(x => sameTranscript(x))
-      def spanning: RDD[ReadPair] = ???
-      def split: RDD[ReadPair] = ???
-      (concordant, spanning, split)
-    }
-
-  def findReadPairs(records: Seq[ADAMRecord]): Seq[ReadPair] = {
-
-    val firstRecords = records.filter(_.getFirstOfPair)
-    val secondRecords = records.filter(_.getSecondOfPair)
-
-    firstRecords.flatMap {
-      case first: ADAMRecord =>
-        secondRecords.map {
-          case second: ADAMRecord =>
-            ReadPair(first, second)
-        }
-    }
-  }
-
-  def getConcordant(groupedByReadName: RDD[(String, Seq[ADAMRecord])]): RDD[ReadPair] = ???
-
-  def sameTranscript(pair: ReadPair): Boolean = {
-    if (!hasTranscriptName(pair.first) || !hasTranscriptName(pair.second))
-      return false
-    val firstContig = pair.first.getContig()
-    val secondContig = pair.second.getContig()
-    pair.first.getContig.getContigName.equals(secondContig.getContigName)
-  }
-
-  def hasTranscriptName(record: ADAMRecord): Boolean = {
-    record.getContig() != null
+  def classify(records: RDD[ADAMRecord]): (RDD[ReadPair], RDD[ReadPair], RDD[ReadPair]) = {
+    Classifier.classify(records)
   }
 
   /**
@@ -176,10 +110,10 @@ class Defuse(coverAlgorithm: SetCover, alpha: Double) {
    * @author carlyeks
    */
   def assignSplitsToFusions(fusions: RDD[ApproximateFusionEvent],
-    splitRecords: RDD[ReadPair],
-    seqDict: SequenceDictionary,
-    lmin: Long,
-    lmax: Long): RDD[(ApproximateFusionEvent, ReadPair)] = {
+                            splitRecords: RDD[ReadPair],
+                            seqDict: SequenceDictionary,
+                            lmin: Long,
+                            lmax: Long): RDD[(ApproximateFusionEvent, ReadPair)] = {
     SplitAssigner.assignSplitsToFusions(fusions, splitRecords, seqDict, lmin, lmax)
   }
 
