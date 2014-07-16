@@ -18,6 +18,7 @@
 package org.bdgenomics.RNAdam.algorithms.defuse
 
 import org.apache.spark.rdd.RDD
+import org.bdgenomics.RNAdam.models.ReadPair
 import org.bdgenomics.adam.models.ReferencePosition
 import org.bdgenomics.adam.util.SparkFunSuite
 import org.bdgenomics.formats.avro.{ ADAMRecord, ADAMContig }
@@ -45,12 +46,22 @@ class ClassifyTestSuite extends SparkFunSuite {
       .setContig(contig)
       .build()
 
+    val defuse = new Defuse(new GreedyVertexCover(), 0 /*alpha*/ )
+
     val recordsRdd = sc.parallelize(Seq(recFirst, recSecond))
 
-    val recordsGrouped: RDD[(String, Seq[ADAMRecord])] = Defuse.preClassify(recordsRdd)
+    val (concordant: RDD[ReadPair], spanning: RDD[ReadPair], split: RDD[ReadPair]) = defuse.classify(recordsRdd)
 
-    println("Record names:")
-    recordsGrouped.foreach(x => println(x._1))
+    println("Classified Records:")
+    println("count concordant: " + concordant.count())
+    assert(concordant.count === 1)
+
+    concordant.map {
+      case pair: ReadPair =>
+        assert(pair.first.getContig === pair.second.getContig)
+    }
+
+    println("count spanning: " + spanning.count)
+    println("count split: " + split.count)
   }
-
 }
