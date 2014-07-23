@@ -25,43 +25,82 @@ import org.bdgenomics.formats.avro.{ ADAMRecord, ADAMContig }
 
 class ClassifyTestSuite extends SparkFunSuite {
 
-  sparkTest("put your test here") {
+  sparkTest("Basic sanity check") {
     val mySc = sc // this is your SparkContext
 
-    val contig = ADAMContig.newBuilder
+    val contig1 = ADAMContig.newBuilder
       .setContigName("chr1")
       .build
 
-    val recFirst = ADAMRecord.newBuilder()
-      .setReadName("fooFirst")
+    val contig2 = ADAMContig.newBuilder
+      .setContigName("chr2")
+      .build
+
+    val rn1cn1_a = ADAMRecord.newBuilder()
+      .setReadName("readName1")
       .setFirstOfPair(true)
       .setReadMapped(true)
-      .setContig(contig)
+      .setContig(contig1)
       .build()
 
-    val recSecond = ADAMRecord.newBuilder()
-      .setReadName("fooSecond")
+    val rn1cn1_b = ADAMRecord.newBuilder()
+      .setReadName("readName1")
       .setSecondOfPair(true)
       .setReadMapped(true)
-      .setContig(contig)
+      .setContig(contig1)
+      .build()
+
+    val rn1cn2_a = ADAMRecord.newBuilder()
+      .setReadName("readName1")
+      .setSecondOfPair(true)
+      .setReadMapped(true)
+      .setContig(contig2)
+      .build()
+
+    val rn2cn1_a = ADAMRecord.newBuilder()
+      .setReadName("readName2")
+      .setSecondOfPair(true)
+      .setReadMapped(true)
+      .setContig(contig1)
+      .build()
+
+    val rn2cnNull_a = ADAMRecord.newBuilder()
+      .setReadName("readName1")
+      .setSecondOfPair(true)
+      .setReadMapped(true)
+      .setContig(null)
       .build()
 
     val defuse = new Defuse(new GreedyVertexCover(), 0 /*alpha*/ )
 
-    val recordsRdd = sc.parallelize(Seq(recFirst, recSecond))
+    val recordsRdd = sc.parallelize(Seq(rn1cn1_a, rn1cn1_b, rn1cn2_a, rn2cn1_a, rn2cnNull_a))
 
     val (concordant: RDD[ReadPair], spanning: RDD[ReadPair], split: RDD[ReadPair]) = defuse.classify(recordsRdd)
 
-    println("Classified Records:")
     println("count concordant: " + concordant.count())
+    println("count spanning: " + spanning.count)
+    println("count split: " + split.count)
     assert(concordant.count === 1)
+    assert(spanning.count === 1)
+    assert(split.count === 1)
 
     concordant.map {
       case pair: ReadPair =>
+        assert(pair.first.getReadName === pair.second.getReadName)
         assert(pair.first.getContig === pair.second.getContig)
     }
 
-    println("count spanning: " + spanning.count)
-    println("count split: " + split.count)
+    spanning.map {
+      case pair: ReadPair =>
+        assert(pair.first.getReadName === pair.second.getReadName)
+        assert(pair.first.getContig != pair.second.getContig)
+    }
+
+    split.map {
+      case pair: ReadPair =>
+        assert(pair.first.getReadName === pair.second.getReadName)
+        assert(pair.first.getContig != null && pair.second.getContig == null)
+    }
+
   }
 }

@@ -23,38 +23,17 @@ object Classifier {
         findReadPairs(records)
     }
 
-    /*
-      val hasTranscriptName = (record: ADAMRecord) => {
-        record.getContig() != null
-      }
-
-      val hasTwoTranscripts = (pair: ReadPair) => {
-        hasTranscriptName(pair.first) && hasTranscriptName(pair.second)
-      }
-
-      val sameTranscript = (pair: ReadPair) => {
-        pair.first.getContig.getContigName.equals(pair.second.getContig.getContigName)
-      }
-
-      val splitTranscript = (pair: ReadPair) => {
-        hasTranscriptName(pair.first) && !hasTranscriptName(pair.second)
-      }
-*/
-
-    /*
-      def concordant: RDD[ReadPair] = readPairs.filter(x => hasTwoTranscripts(x)).filter(x => sameTranscript(x))
-      def spanning: RDD[ReadPair] = readPairs.filter(x => hasTwoTranscripts(x)).filter(x => !sameTranscript(x))
-*/
+    println("Number of readpairs: " + readPairs.count)
     def concordant: RDD[ReadPair] = readPairs.filter(x => sameTranscript(x))
     def spanning: RDD[ReadPair] = readPairs.filter(x => spanningTranscript(x))
     def split: RDD[ReadPair] = readPairs.filter(x => splitTranscript(x))
     (concordant, spanning, split)
   }
 
-  def findReadPairs(records: Seq[ADAMRecord]): Seq[ReadPair] = {
+  protected def findReadPairs(records: Seq[ADAMRecord]): Seq[ReadPair] = {
 
-    val firstRecords = records.filter(_.getFirstOfPair)
-    val secondRecords = records.filter(_.getSecondOfPair)
+    val firstRecords: Seq[ADAMRecord] = records.filter(_.getFirstOfPair)
+    val secondRecords: Seq[ADAMRecord] = records.filter(_.getSecondOfPair)
 
     firstRecords.flatMap {
       case first: ADAMRecord =>
@@ -65,25 +44,25 @@ object Classifier {
     }
   }
 
-  def hasTranscriptName(record: ADAMRecord): Boolean = {
+  protected def hasTranscriptName(record: ADAMRecord): Boolean = {
     record.getContig() != null
   }
 
-  def sameTranscript(pair: ReadPair): Boolean = {
+  protected def sameTranscript(pair: ReadPair): Boolean = {
 
     if (!hasTranscriptName(pair.first) || !hasTranscriptName(pair.second))
       return false
     pair.first.getContig.getContigName.equals(pair.second.getContig().getContigName)
   }
 
-  def spanningTranscript(pair: ReadPair): Boolean = {
+  protected def spanningTranscript(pair: ReadPair): Boolean = {
 
     if (!hasTranscriptName(pair.first) || !hasTranscriptName(pair.second))
       return false
     !pair.first.getContig.getContigName.equals(pair.second.getContig().getContigName)
   }
 
-  def splitTranscript(pair: ReadPair): Boolean = {
+  protected def splitTranscript(pair: ReadPair): Boolean = {
     hasTranscriptName(pair.first) && !hasTranscriptName(pair.second)
   }
 }
