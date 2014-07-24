@@ -66,6 +66,7 @@ class Defuse(coverAlgorithm: SetCover, alpha: Double) {
    */
   def classify(records: RDD[AlignmentRecord]): (RDD[ReadPair], RDD[ReadPair], RDD[ReadPair]) =
     ???
+  }
 
   /**
    * Calculates a fragment length distribution, and excludes outliers given an
