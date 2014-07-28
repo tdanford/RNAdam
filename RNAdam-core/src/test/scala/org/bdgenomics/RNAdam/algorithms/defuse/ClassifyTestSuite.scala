@@ -27,48 +27,24 @@ class ClassifyTestSuite extends SparkFunSuite {
 
   sparkTest("Basic sanity check") {
 
-    val contig1 = ADAMContig.newBuilder
-      .setContigName("chr1")
-      .build
-
-    val contig2 = ADAMContig.newBuilder
-      .setContigName("chr2")
-      .build
-
-    val rn1cn1_a = ADAMRecord.newBuilder()
-      .setReadName("readName1")
-      .setFirstOfPair(true)
-      .setReadMapped(true)
-      .setContig(contig1)
+  def rec(readName: String, contigName: String, readMapped: Boolean = true, secondOfPair: Boolean = false): ADAMRecord = {
+    val contig = ADAMContig.newBuilder().setContigName(contigName).build()
+    ADAMRecord.newBuilder()
+      .setReadName(readName)
+      .setContig(contig)
+      .setReadMapped(readMapped)
+      .setFirstOfPair(!secondOfPair)
+      .setSecondOfPair(secondOfPair)
       .build()
+  }
 
-    val rn1cn1_b = ADAMRecord.newBuilder()
-      .setReadName("readName1")
-      .setSecondOfPair(true)
-      .setReadMapped(true)
-      .setContig(contig1)
-      .build()
+  sparkTest("Basic sanity check") {
 
-    val rn1cn2_a = ADAMRecord.newBuilder()
-      .setReadName("readName1")
-      .setSecondOfPair(true)
-      .setReadMapped(true)
-      .setContig(contig2)
-      .build()
-
-    val rn2cn1_a = ADAMRecord.newBuilder()
-      .setReadName("readName2")
-      .setSecondOfPair(true)
-      .setReadMapped(true)
-      .setContig(contig1)
-      .build()
-
-    val rn2cnNull_a = ADAMRecord.newBuilder()
-      .setReadName("readName1")
-      .setSecondOfPair(true)
-      .setReadMapped(false)
-      .setContig(null)
-      .build()
+    val rn1cn1_a = rec("readName1", "chr1")
+    val rn1cn1_b = rec("readName1", "chr1", secondOfPair = true)
+    val rn1cn2_a = rec("readName1", "chr2", secondOfPair = true)
+    val rn2cn1_a = rec("readName2", "chr1", secondOfPair = true)
+    val rn2cnNull_a = rec("readName1", null, readMapped = false, secondOfPair = true)
 
     val defuse = new Defuse(new GreedyVertexCover(), 0 /*alpha*/ )
 
