@@ -19,29 +19,29 @@ package org.bdgenomics.RNAdam.algorithms.defuse
 
 import scala.math._
 
-class DPSplitReadAlignment(m : Double, u : Double, g : Double,
-                           refSeq : String, readSeq : String) {
+class DPSplitReadAlignment(m: Double, u: Double, g: Double,
+                           refSeq: String, readSeq: String) {
 
   val refLength = refSeq.length
   val readLength = readSeq.length
 
-  val array = new Array[Double]( refLength * readLength )
+  val array = new Array[Double](refLength * readLength)
 
-  def get(i : Int, j : Int) : Double = array(i * refLength + j)
-  def set(i : Int, j : Int, v : Double) { array(i * refLength + j) = v }
+  def get(i: Int, j: Int): Double = array(i * refLength + j)
+  def set(i: Int, j: Int, v: Double) { array(i * refLength + j) = v }
 
-  def delta(i : Char, j : Char) = if(i == j) m else u
+  def delta(i: Char, j: Char) = if (i == j) m else u
 
-  (0 until refLength).foreach { i => set(i, 0, 0.0)  }
-  (1 until readLength).foreach { j => set(0, j, get(0, j-1) + g) }
+  (0 until refLength).foreach { i => set(i, 0, 0.0) }
+  (1 until readLength).foreach { j => set(0, j, get(0, j - 1) + g) }
 
   (1 until refLength).foreach {
     case i =>
       (1 until readLength).foreach {
         case j =>
-          val v1 = get(i-1, j-1) + delta(refSeq.charAt(i), readSeq.charAt(j))
-          val v2 = get(i-1, j) + g
-          val v3 = get(i, j-1) + g
+          val v1 = get(i - 1, j - 1) + delta(refSeq.charAt(i), readSeq.charAt(j))
+          val v2 = get(i - 1, j) + g
+          val v3 = get(i, j - 1) + g
           set(i, j, max(v1, max(v2, v3)))
       }
   }
